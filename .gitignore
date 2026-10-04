@@ -1,0 +1,39 @@
+# Secrets and local config (contain API keys and passwords)
+.env
+.env.*
+!.env.example
+*.env
+
+# Local databases
+*.db
+*.sqlite
+*.sqlite3
+
+# Python
+.venv/
+venv/
+__pycache__/
+*.pyc
+*.pyo
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# Node / frontend build
+node_modules/
+dist/
+build/
+*.tsbuildinfo
+.vite/
+
+# Logs
+*.log
+logs/
+npm-debug.log*
+
+# Editors, OS and tools
+.vscode/
+.idea/
+.claude/
+.DS_Store
+Thumbs.db

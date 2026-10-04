@@ -1,0 +1,8 @@
+# Secrets: database password, JWT secret, Gemini key
+.env
+.env.*
+!.env.example
+
+*.db
+__pycache__/
+.venv/
