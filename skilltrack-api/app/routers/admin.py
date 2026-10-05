@@ -7,12 +7,13 @@ from sqlalchemy.orm import Session
 from ..database import get_db
 from ..deps import require_roles
 from ..models import (
-    ActivityLog, Attempt, Certificate, Domain, Enrollment, Level, Setting, User,
+    ActivityLog, Attempt, Certificate, Domain, Enrollment, Level, Setting, Slot, User,
 )
 from ..rules import (
-    DEFAULT_LEVELS, DEFAULT_SETTINGS, DOMAIN_SELECTION_SEMESTER, enrollment_status, get_settings, semester_of,
+    COMMON_DOMAIN_NAME, DEFAULT_LEVELS, DEFAULT_SETTINGS, DOMAIN_SELECTION_SEMESTER,
+    enrollment_status, get_settings, semester_of,
 )
-from ..schemas import DomainIn, DomainPatch, PromoteIn, SettingsIn, StaffIn, UserOut, UserPatch
+from ..schemas import AssignCommonIn, DomainIn, DomainPatch, PromoteIn, SettingsIn, StaffIn, UserOut, UserPatch
 from ..security import hash_password
 
 router = APIRouter(prefix="/admin", tags=["admin"])
@@ -146,6 +147,59 @@ def promote(body: PromoteIn, db: Session = Depends(get_db), admin: User = Depend
     db.add(ActivityLog(user_id=admin.id, action=f"{admin.name} promoted {promoted} student(s) to the next semester"))
     db.commit()
     return {"promoted": promoted, "already_final": at_final}
+
+
+@router.post("/assign-common")
+def assign_common(body: AssignCommonIn, db: Session = Depends(get_db), admin: User = Depends(admin_only)):
+    """One-click action for Semesters 1-2: ensure the Common Assessments domain exists,
+    auto-enroll every student in that semester, and create an exam slot."""
+    # 1. Ensure the Common Assessments domain + its levels exist
+    common = db.scalar(select(Domain).where(Domain.is_common.is_(True)))
+    if common is None:
+        common = Domain(name=COMMON_DOMAIN_NAME, is_common=True)
+        db.add(common)
+        db.flush()
+        for number, (level_name, questions, pass_mark, minutes) in enumerate(DEFAULT_LEVELS, start=1):
+            db.add(Level(
+                domain_id=common.id, number=number, name=f"Semester {number} Assessment",
+                question_count=questions, pass_mark=pass_mark, duration_min=minutes,
+            ))
+        db.flush()
+
+    # 2. Find the level that corresponds to the requested semester
+    level = next((lv for lv in common.levels if lv.number == body.semester), None)
+    if level is None:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, f"No level for Semester {body.semester} in Common Assessments")
+
+    # 3. Enroll all students in that semester who are not already enrolled
+    students = db.scalars(
+        select(User).where(User.role == "student", User.semester == body.semester)
+    ).all()
+    enrolled_ids = set(db.scalars(
+        select(Enrollment.user_id).where(Enrollment.domain_id == common.id)
+    ))
+    enrolled_count = 0
+    for s in students:
+        if s.id not in enrolled_ids:
+            db.add(Enrollment(user_id=s.id, domain_id=common.id, current_level=body.semester))
+            enrolled_count += 1
+
+    # 4. Create the exam slot
+    slot = Slot(level_id=level.id, starts_at=body.starts_at, venue=body.venue.strip(), capacity=body.capacity)
+    db.add(slot)
+
+    db.add(ActivityLog(
+        user_id=admin.id,
+        action=f"{admin.name} assigned Semester {body.semester} common assessment — enrolled {enrolled_count} student(s), slot at {body.venue}",
+    ))
+    db.commit()
+    return {
+        "enrolled": enrolled_count,
+        "already_enrolled": len(students) - enrolled_count,
+        "total_students": len(students),
+        "slot_id": slot.id,
+        "level_name": level.name,
+    }
 
 
 @router.get("/activity")

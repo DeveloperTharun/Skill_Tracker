@@ -72,7 +72,7 @@ const ROLE_STYLE: Record<string, string> = {
   invigilator: 'bg-sky-100 text-sky-700',
 }
 
-const TABS = ['Users', 'Domains', 'Slots', 'Questions', 'Promote', 'Settings'] as const
+const TABS = ['Users', 'Domains', 'Slots', 'Questions', 'Promote', 'Assign', 'Settings'] as const
 
 const PATHS = {
   users: 'M16 11a3 3 0 100-6 3 3 0 000 6zM8 11a3 3 0 100-6 3 3 0 000 6zM2 20a6 6 0 0112 0M14 14.5A6 6 0 0122 20',
@@ -426,6 +426,101 @@ function ManageSettings() {
   )
 }
 
+function ManageAssign() {
+  const [semester, setSemester] = useState(1)
+  const [form, setForm] = useState({ when: '', venue: '', capacity: 30 })
+  const [message, setMessage] = useState<{ ok: boolean; text: string } | null>(null)
+  const [loading, setLoading] = useState(false)
+
+  const pad = (n: number) => String(n).padStart(2, '0')
+  const toLocalInput = (iso: string) => {
+    const d = new Date(iso)
+    return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`
+  }
+
+  async function assign(e: FormEvent) {
+    e.preventDefault()
+    setLoading(true)
+    setMessage(null)
+    try {
+      const res = await api.post<{
+        enrolled: number; already_enrolled: number; total_students: number; slot_id: number; level_name: string
+      }>('/admin/assign-common', {
+        semester,
+        starts_at: new Date(form.when).toISOString(),
+        venue: form.venue,
+        capacity: form.capacity,
+      })
+      const d = res.data
+      setMessage({
+        ok: true,
+        text: `✅ ${d.enrolled} student(s) enrolled (${d.already_enrolled} already enrolled). Slot created for "${d.level_name}" with ${form.capacity} seats at ${form.venue}.`,
+      })
+      setForm({ when: '', venue: '', capacity: 30 })
+    } catch (err) {
+      setMessage({ ok: false, text: errorMessage(err) })
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  return (
+    <>
+      <p className="mb-4 rounded-xl bg-indigo-50 px-4 py-3 text-sm text-indigo-800">
+        <strong>Assign Common Assessment</strong> — Auto-enroll all Semester 1 or 2 students in the Common Assessments domain and create an exam slot in one step.
+      </p>
+
+      <form onSubmit={assign} className="space-y-4">
+        <div className="flex flex-wrap items-center gap-3 text-sm">
+          <span className="font-medium text-slate-700">Semester</span>
+          <select
+            value={semester} onChange={(e) => { setSemester(Number(e.target.value)); setMessage(null) }}
+            className={inputClass} aria-label="Semester"
+          >
+            <option value={1}>Semester 1</option>
+            <option value={2}>Semester 2</option>
+          </select>
+        </div>
+
+        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+          <div>
+            <label className="mb-1 block text-xs font-semibold text-slate-500">Date & Time</label>
+            <input
+              required type="datetime-local" value={form.when}
+              min={toLocalInput(new Date().toISOString())}
+              onChange={(e) => setForm({ ...form, when: e.target.value })}
+              className={`${inputClass} w-full`} aria-label="Date and time"
+            />
+          </div>
+          <div className="sm:col-span-2">
+            <label className="mb-1 block text-xs font-semibold text-slate-500">Venue</label>
+            <input
+              required minLength={2} placeholder="e.g. Block A - Lab 2" value={form.venue}
+              onChange={(e) => setForm({ ...form, venue: e.target.value })}
+              className={`${inputClass} w-full`}
+            />
+          </div>
+          <div>
+            <label className="mb-1 block text-xs font-semibold text-slate-500">Capacity</label>
+            <input
+              required type="number" min={1} max={500} value={form.capacity}
+              onChange={(e) => setForm({ ...form, capacity: Number(e.target.value) })}
+              className={`${inputClass} w-full`} aria-label="Seats"
+            />
+          </div>
+        </div>
+
+        <div className="flex flex-wrap items-center gap-3">
+          <button disabled={loading} className={primaryBtn}>
+            {loading ? 'Assigning…' : `Enroll & create slot for Semester ${semester}`}
+          </button>
+          <Message message={message} />
+        </div>
+      </form>
+    </>
+  )
+}
+
 export default function AdminDashboard() {
   const [overview, setOverview] = useState<Overview | null>(null)
   const [loadError, setLoadError] = useState('')
@@ -599,6 +694,7 @@ export default function AdminDashboard() {
         {tab === 'Slots' && <SlotManager />}
         {tab === 'Questions' && <ManageQuestions />}
         {tab === 'Promote' && <ManagePromotion />}
+        {tab === 'Assign' && <ManageAssign />}
         {tab === 'Settings' && <ManageSettings />}
       </Card>
     </div>

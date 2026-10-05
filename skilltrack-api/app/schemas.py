@@ -127,5 +127,12 @@ class SlotPatch(BaseModel):
     capacity: int | None = Field(default=None, ge=1, le=500)
 
 
+class AssignCommonIn(BaseModel):
+    semester: int = Field(ge=1, le=2)
+    starts_at: AwareDatetime
+    venue: str = Field(min_length=2, max_length=120)
+    capacity: int = Field(ge=1, le=500)
+
+
 class PromoteIn(BaseModel):
     student_ids: list[int] = Field(min_length=1, max_length=2000)
