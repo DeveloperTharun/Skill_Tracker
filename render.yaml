@@ -35,7 +35,7 @@ services:
     staticPublishPath: dist
     envVars:
       - key: VITE_API_URL
-        value: https://skilltrack-api.onrender.com
+        value: https://skilltrack-api-5vwx.onrender.com
     routes:
       - type: rewrite
         source: /*
