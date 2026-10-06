@@ -4,6 +4,7 @@ import {
   Bar, BarChart, CartesianGrid, Legend, ResponsiveContainer, Tooltip, XAxis, YAxis,
 } from 'recharts'
 import { api, errorMessage } from '../api'
+import { useAuth } from '../context/AuthContext'
 import Card from '../components/Card'
 import { Icon } from '../components/AuthLayout'
 import QuestionBank from '../components/QuestionBank'
@@ -132,6 +133,7 @@ function Filter({ label, value, onChange, options }: {
 }
 
 function ManageUsers() {
+  const { user: currentUser } = useAuth()
   const [staff, setStaff] = useState<StaffRow[]>([])
   const [form, setForm] = useState({ name: '', email: '', password: '', role: 'invigilator' })
   const [error, setError] = useState('')
@@ -177,12 +179,16 @@ function ManageUsers() {
             </div>
             <div className="flex shrink-0 items-center gap-3">
               <span className={`rounded-full px-3 py-1 text-xs font-semibold capitalize ${ROLE_STYLE[u.role] ?? 'bg-slate-100 text-slate-600'}`}>{u.role}</span>
-              <button
-                onClick={() => toggle(u)}
-                className={`rounded-lg border px-3 py-1 text-xs font-semibold transition ${u.is_active ? 'border-red-200 text-red-600 hover:bg-red-50' : 'border-emerald-200 text-emerald-600 hover:bg-emerald-50'}`}
-              >
-                {u.is_active ? 'Deactivate' : 'Activate'}
-              </button>
+              {u.id === currentUser?.id ? (
+                <span className="rounded-lg border border-slate-200 px-3 py-1 text-xs font-semibold text-slate-400" title="You cannot deactivate your own account">You</span>
+              ) : (
+                <button
+                  onClick={() => toggle(u)}
+                  className={`rounded-lg border px-3 py-1 text-xs font-semibold transition ${u.is_active ? 'border-red-200 text-red-600 hover:bg-red-50' : 'border-emerald-200 text-emerald-600 hover:bg-emerald-50'}`}
+                >
+                  {u.is_active ? 'Deactivate' : 'Activate'}
+                </button>
+              )}
             </div>
           </li>
         ))}
