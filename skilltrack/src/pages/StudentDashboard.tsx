@@ -195,98 +195,6 @@ function BadgeViewModal({ badge, onClose, onDownload }: {
   )
 }
 
-// ── Certificate view modal ─────────────────────────────────────────────────────
-
-function CertViewModal({ domain, onClose, onDownload }: {
-  domain: DomainProgress
-  onClose: () => void
-  onDownload: () => void
-}) {
-  const [pdfUrl, setPdfUrl] = useState<string | null>(null)
-  const [loading, setLoading] = useState(true)
-  const [err, setErr] = useState('')
-  const dialogRef = useRef<HTMLDivElement>(null)
-  const isMobile = /Mobi|Android|iPhone|iPad/i.test(navigator.userAgent)
-  useFocusTrap(dialogRef, true)
-
-  useEffect(() => {
-    const prev = document.activeElement as HTMLElement | null
-    return () => { prev?.focus() }
-  }, [])
-
-  useEffect(() => {
-    const h = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose() }
-    window.addEventListener('keydown', h)
-    return () => window.removeEventListener('keydown', h)
-  }, [onClose])
-
-  useEffect(() => {
-    if (!domain.certificate) return
-    let url: string | null = null
-    let cancelled = false
-    api.get<Blob>(`/me/certificates/${domain.certificate.code}/pdf`, { responseType: 'blob' })
-      .then(r => { if (!cancelled) { url = URL.createObjectURL(r.data); setPdfUrl(url) } })
-      .catch(e => { if (!cancelled) setErr(errorMessage(e as Error, 'Could not load certificate')) })
-      .finally(() => { if (!cancelled) setLoading(false) })
-    return () => { cancelled = true; if (url) URL.revokeObjectURL(url) }
-  }, [domain.certificate?.code])
-
-  const cert = domain.certificate!
-  return (
-    <div role="dialog" aria-modal="true" aria-label={`Certificate: ${domain.domain_name}`}
-      className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/70 p-4 backdrop-blur-sm"
-      onClick={e => { if (e.target === e.currentTarget) onClose() }}>
-      <div ref={dialogRef} className="relative flex w-full max-w-4xl flex-col rounded-3xl bg-white shadow-2xl dark:bg-slate-900" style={{ maxHeight: '90vh' }}>
-        <div className="flex shrink-0 items-center justify-between border-b border-slate-100 px-6 py-4 dark:border-slate-800">
-          <div>
-            <h2 className="text-lg font-bold text-slate-900 dark:text-white">{domain.domain_name} Certificate</h2>
-            <p className="mt-0.5 text-xs text-slate-500 dark:text-slate-400">ID: {cert.code} · Issued {fmtDate(cert.issued_at)}</p>
-          </div>
-          <button onClick={onClose} aria-label="Close"
-            className="rounded-lg p-1.5 text-slate-400 hover:bg-slate-100 hover:text-slate-700 dark:hover:bg-slate-700 dark:hover:text-slate-200">
-            {ico('x', 'h-5 w-5')}
-          </button>
-        </div>
-        <div className="relative min-h-[400px] flex-1 overflow-hidden bg-slate-50 dark:bg-slate-800">
-          {loading && (
-            <div className="absolute inset-0 flex items-center justify-center">
-              <span className="h-10 w-10 animate-spin rounded-full border-4 border-indigo-200 border-t-indigo-600" />
-            </div>
-          )}
-          {err && <div className="absolute inset-0 flex items-center justify-center p-6"><p className="text-center text-sm text-red-600 dark:text-red-400">{err}</p></div>}
-          {pdfUrl && !isMobile && <iframe src={pdfUrl} title="Certificate preview" className="h-full w-full border-0" style={{ minHeight: '400px' }} />}
-          {pdfUrl && isMobile && (
-            <div className="flex h-full flex-col items-center justify-center gap-4 p-8 text-center">
-              <p className="text-sm font-semibold text-slate-700 dark:text-slate-200">PDF preview not available on mobile.</p>
-            </div>
-          )}
-        </div>
-        <div className="flex shrink-0 flex-wrap items-center justify-between gap-3 border-t border-slate-100 px-6 py-4 dark:border-slate-800">
-          <p className="text-xs text-slate-400 dark:text-slate-500">
-            Verify: <a href={`/verify/${cert.code}`} target="_blank" rel="noopener noreferrer" className="font-mono text-indigo-600 hover:underline dark:text-indigo-400">/verify/{cert.code}</a>
-          </p>
-          <div className="flex flex-wrap gap-3">
-            <button onClick={onClose}
-              className="rounded-xl border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-600 hover:bg-slate-50 dark:border-slate-700 dark:text-slate-300 dark:hover:bg-slate-800">
-              Close
-            </button>
-            {isMobile && pdfUrl && (
-              <a href={pdfUrl} target="_blank" rel="noopener noreferrer"
-                className="inline-flex items-center gap-1.5 rounded-xl border border-indigo-200 px-4 py-2 text-sm font-semibold text-indigo-600 hover:bg-indigo-50">
-                {ico('arrow', 'h-4 w-4')} Open in new tab
-              </a>
-            )}
-            <button onClick={onDownload}
-              className="inline-flex items-center gap-1.5 rounded-xl bg-indigo-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-indigo-500">
-              {ico('download', 'h-4 w-4')} Download PDF
-            </button>
-          </div>
-        </div>
-      </div>
-    </div>
-  )
-}
-
 function AiStatus({ state }: { state: FetchState<unknown> }) {
   if (state.loading) {
     return (
@@ -437,109 +345,6 @@ function BadgesSection({
   )
 }
 
-function CertificatesSection({
-  credentials, onDownload,
-}: {
-  credentials: Credentials | null | undefined
-  onDownload: (code: string) => void
-}) {
-  const [viewingCert, setViewingCert] = useState<DomainProgress | null>(null)
-
-  const viewAll = (
-    <Link to="/student/credentials" className="inline-flex items-center gap-1 rounded-lg border border-indigo-200 px-3 py-1.5 text-xs font-semibold text-indigo-600 transition hover:bg-indigo-50 dark:border-indigo-800 dark:text-indigo-400 dark:hover:bg-indigo-900/30">
-      View All
-    </Link>
-  )
-  if (!credentials) {
-    return (
-      <Card title="Domain Certificates" icon={ico('ribbon')} action={viewAll}>
-        <div className="flex items-center gap-2 text-sm text-slate-500">
-          <span className="h-4 w-4 animate-spin rounded-full border-2 border-indigo-200 border-t-indigo-600" />
-          Loading certificates…
-        </div>
-      </Card>
-    )
-  }
-
-  if (credentials.domains.length === 0) {
-    return (
-      <Card title="Domain Certificates" icon={ico('ribbon')} action={viewAll}>
-        <p className="rounded-xl bg-slate-50 px-3 py-2 text-sm text-slate-500">Enroll in a domain and pass all levels to earn a certificate.</p>
-      </Card>
-    )
-  }
-
-  return (
-    <>
-      {viewingCert && (
-        <CertViewModal
-          domain={viewingCert}
-          onClose={() => setViewingCert(null)}
-          onDownload={() => { onDownload(viewingCert.certificate!.code); setViewingCert(null) }}
-        />
-      )}
-      <Card title="Domain Certificates" icon={ico('ribbon')} action={viewAll}>
-        <ul className="space-y-3">
-          {credentials.domains.map((d) => (
-            <li key={d.domain_id} className={`rounded-xl border p-4 transition hover:shadow-md ${d.completed ? 'border-emerald-200 bg-emerald-50/50 dark:border-emerald-800/60 dark:bg-emerald-900/20' : 'border-slate-100 dark:border-slate-700'}`}>
-              <div className="flex flex-wrap items-start justify-between gap-3">
-                <div className="flex items-center gap-3">
-                  <span className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl ${d.completed ? 'bg-emerald-100 text-emerald-600 dark:bg-emerald-900/40 dark:text-emerald-400' : 'bg-slate-100 text-slate-400 dark:bg-slate-700 dark:text-slate-500'}`}>
-                    {ico('ribbon', 'h-5 w-5')}
-                  </span>
-                  <div>
-                    <div className="font-semibold text-slate-900 dark:text-white">{d.domain_name}</div>
-                    {d.completed ? (
-                      <div className="mt-0.5 flex items-center gap-1.5 text-xs text-emerald-600">
-                        {ico('check', 'h-3.5 w-3.5')} Domain Completed · {d.total_levels}/{d.total_levels} levels
-                      </div>
-                    ) : (
-                      <div className="mt-0.5 text-xs text-slate-500">{d.passed_levels}/{d.total_levels} levels completed</div>
-                    )}
-                  </div>
-                </div>
-                {d.completed && d.certificate ? (
-                  <div className="flex shrink-0 flex-wrap gap-2">
-                    <span className="rounded-full bg-emerald-100 px-3 py-1 text-xs font-semibold text-emerald-700">Certificate Available</span>
-                    <button
-                      onClick={() => setViewingCert(d)}
-                      className="inline-flex items-center gap-1.5 rounded-lg border border-indigo-200 px-3 py-1.5 text-xs font-semibold text-indigo-600 transition hover:bg-indigo-50"
-                    >
-                      {ico('eye', 'h-3.5 w-3.5')} View
-                    </button>
-                    <button
-                      onClick={() => onDownload(d.certificate!.code)}
-                      className="rounded-lg border border-indigo-200 px-3 py-1.5 text-xs font-semibold text-indigo-600 transition hover:bg-indigo-50"
-                    >
-                      Download PDF
-                    </button>
-                  </div>
-                ) : d.completed ? (
-                  <span className="rounded-full bg-amber-100 px-3 py-1 text-xs font-semibold text-amber-700">Processing…</span>
-                ) : (
-                  <div className="w-32">
-                    <div className="mb-1 flex justify-between text-xs text-slate-500">
-                      <span>Progress</span><span>{d.passed_levels}/{d.total_levels}</span>
-                    </div>
-                    <div className="h-2 overflow-hidden rounded-full bg-slate-200">
-                      <div
-                        className="h-2 rounded-full bg-linear-to-r from-indigo-500 to-purple-500 transition-all"
-                        style={{ width: `${d.total_levels > 0 ? Math.round(d.passed_levels / d.total_levels * 100) : 0}%` }}
-                      />
-                    </div>
-                  </div>
-                )}
-              </div>
-              {d.certificate && (
-                <p className="mt-2 text-xs text-slate-400 dark:text-slate-500">ID: {d.certificate.code} · Issued {fmtDate(d.certificate.issued_at)}</p>
-              )}
-            </li>
-          ))}
-        </ul>
-      </Card>
-    </>
-  )
-}
 const fmtTime = (iso: string) =>
   new Date(iso).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })
 
@@ -876,23 +681,6 @@ export default function StudentDashboard() {
     }
   }
 
-  async function downloadCertificate(code: string) {
-    setActionError('')
-    try {
-      const res = await api.get<Blob>(`/me/certificates/${code}/pdf`, { responseType: 'blob' })
-      const url = URL.createObjectURL(res.data)
-      const link = document.createElement('a')
-      link.href = url
-      link.download = `${code}.pdf`
-      document.body.appendChild(link)
-      link.click()
-      link.remove()
-      URL.revokeObjectURL(url)
-    } catch (err) {
-      setActionError(errorMessage(err, 'Could not download the certificate'))
-    }
-  }
-
   async function downloadBadge(badgeId: number, domainName: string, levelNumber: number) {
     setActionError('')
     try {
@@ -1162,10 +950,7 @@ export default function StudentDashboard() {
         )}
       </Card>
 
-      <div className="grid gap-6 lg:grid-cols-2">
-        <BadgesSection credentials={credentials.data} onDownload={downloadBadge} />
-        <CertificatesSection credentials={credentials.data} onDownload={downloadCertificate} />
-      </div>
+      <BadgesSection credentials={credentials.data} onDownload={downloadBadge} />
     </div>
   )
 }
