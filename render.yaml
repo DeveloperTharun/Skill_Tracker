@@ -1,5 +1,4 @@
 # Render Blueprint: Postgres + FastAPI API + static React site.
-# Replace the two URLs below with the real ones Render gives you after the first deploy.
 databases:
   - name: skilltrack-db
     plan: free
@@ -7,10 +6,9 @@ databases:
 services:
   - type: web
     name: skilltrack-api
-    repo: https://github.com/DeveloperTharun/Skill_Tracker
     runtime: python
     rootDir: skilltrack-api
-    plan: free
+    plan: starter
     buildCommand: pip install -r requirements.txt
     startCommand: uvicorn app.main:app --host 0.0.0.0 --port $PORT
     healthCheckPath: /health
@@ -23,6 +21,10 @@ services:
           property: connectionString
       - key: SECRET_KEY
         generateValue: true
+      - key: FRONTEND_URL
+        value: https://skilltrack-web.onrender.com
+      - key: PUBLIC_BASE_URL
+        value: https://skilltrack-web.onrender.com
       - key: CORS_ORIGINS
         value: https://skilltrack-web.onrender.com
       - key: GEMINI_API_KEY
@@ -30,7 +32,6 @@ services:
 
   - type: web
     name: skilltrack-web
-    repo: https://github.com/DeveloperTharun/Skill_Tracker
     runtime: static
     rootDir: skilltrack
     buildCommand: npm ci && npm run build
