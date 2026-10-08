@@ -9,7 +9,7 @@ services:
   - type: web
     name: skilltrack-api
     env: python
-    rootDir: skilltrack-api
+    rootDir: Skill-Track/skilltrack-api
     buildCommand: pip install -r requirements.txt
     startCommand: uvicorn app.main:app --host 0.0.0.0 --port $PORT
     plan: free
@@ -37,7 +37,7 @@ services:
   - type: web
     name: skilltrack-frontend
     env: static
-    rootDir: skilltrack
+    rootDir: Skill-Track/skilltrack
     buildCommand: npm install && npm run build
     staticPublishPath: dist
     envVars:
