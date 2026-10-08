@@ -1,19 +1,20 @@
+# Render Blueprint: Postgres + FastAPI API + static React site.
 databases:
   - name: skilltrack-db
     plan: free
-    databaseName: skilltrack
-    user: skilltrack
 
 services:
-  # ── Backend API ──────────────────────────────────────────────────────────────
   - type: web
     name: skilltrack-api
-    env: python
-    rootDir: Skill-Track/skilltrack-api
+    runtime: python
+    rootDir: skilltrack-api
+    plan: starter
     buildCommand: pip install -r requirements.txt
     startCommand: uvicorn app.main:app --host 0.0.0.0 --port $PORT
-    plan: free
+    healthCheckPath: /health
     envVars:
+      - key: PYTHON_VERSION
+        value: 3.12.1
       - key: DATABASE_URL
         fromDatabase:
           name: skilltrack-db
@@ -21,25 +22,24 @@ services:
       - key: SECRET_KEY
         generateValue: true
       - key: FRONTEND_URL
-        sync: false
+        value: https://skilltrack-web.onrender.com
       - key: PUBLIC_BASE_URL
-        sync: false
+        value: https://skilltrack-web.onrender.com
       - key: CORS_ORIGINS
-        sync: false
-      - key: ACCESS_TOKEN_MINUTES
-        value: "480"
+        value: https://skilltrack-web.onrender.com
       - key: GEMINI_API_KEY
         sync: false
-      - key: GEMINI_MODEL
-        value: gemini-1.5-flash
 
-  # ── Frontend Static Site ─────────────────────────────────────────────────────
   - type: web
-    name: skilltrack-frontend
-    env: static
-    rootDir: Skill-Track/skilltrack
-    buildCommand: npm install && npm run build
+    name: skilltrack-web
+    runtime: static
+    rootDir: skilltrack
+    buildCommand: npm ci && npm run build
     staticPublishPath: dist
     envVars:
       - key: VITE_API_URL
-        sync: false
+        value: https://skilltrack-api-5vwx.onrender.com
+    routes:
+      - type: rewrite
+        source: /*
+        destination: /index.html
