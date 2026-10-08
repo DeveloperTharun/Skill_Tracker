@@ -46,11 +46,11 @@ def _booking_out(booking: SlotBooking, slot: Slot, level: Level) -> dict:
     return {
         "booking_id": booking.id,
         "slot_id": slot.id,
-        "starts_at": slot.starts_at,
+        "starts_at": _as_utc(slot.starts_at),
         "venue": slot.venue,
         "level_name": level.name,
         "domain_name": level.domain.name,
-        "booked_at": booking.booked_at,
+        "booked_at": _as_utc(booking.booked_at),
         "change_cancel_deadline": deadline,
         "window_expired": remaining == 0,
         "seconds_remaining_in_window": remaining,
@@ -384,7 +384,7 @@ def dashboard(user: User = Depends(student_only), db: Session = Depends(get_db))
         ).all()
         result["slots"] = [
             {
-                "id": s.id, "starts_at": s.starts_at, "venue": s.venue,
+                "id": s.id, "starts_at": _as_utc(s.starts_at), "venue": s.venue,
                 "seats_left": max(0, s.capacity - _seats_taken(db, s.id)),
             }
             for s in slots

@@ -46,7 +46,7 @@ def _booked(db: Session, slot_id: int) -> int:
 
 def _out(db: Session, slot: Slot) -> dict:
     return {
-        "id": slot.id, "level_id": slot.level_id, "starts_at": slot.starts_at,
+        "id": slot.id, "level_id": slot.level_id, "starts_at": _aware(slot.starts_at),
         "venue": slot.venue, "capacity": slot.capacity, "booked": _booked(db, slot.id),
     }
 
